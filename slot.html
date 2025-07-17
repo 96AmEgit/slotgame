@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5ライン ビデオスロット (間隔調整版)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            padding: 20px 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 480px; /* コンテナ幅を少し広げます */
+        }
+
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        #reels-area {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            /* ★★★ ここを変更しました ★★★ */
+            gap: 70px; /* リール間の間隔 */
+            padding: 10px;
+            border: 5px solid #333;
+            background: #000;
+            border-radius: 10px;
+        }
+
+        .reel-column {
+            display: flex;
+            flex-direction: column;
+            gap: 5px; /* セル間の縦の間隔 */
+        }
+        
+        .reel-cell {
+            width: 80px;
+            height: 80px;
+            background-color: #fff;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            border: 2px solid #ccc;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+        }
+
+        .highlight {
+            background-color: #ffc107 !important;
+            border-color: #e84118 !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px #ffc107;
+        }
+
+        #stop-controls {
+            display: flex;
+            justify-content: center;
+            gap: 25px; /* ボタンの間隔もリールに合わせます */
+            margin-top: 10px;
+        }
+
+        .stop-button {
+            width: 90px;
+            padding: 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #dc3545;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .stop-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        #player-info {
+            font-size: 18px;
+            color: #555;
+            margin: 20px 0;
+        }
+
+        #player-info span {
+            font-weight: bold;
+            color: #e84118;
+        }
+        
+        #bet-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #bet-amount {
+            width: 60px;
+            padding: 5px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+
+        #spin-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #spin-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #d35400;
+            height: 25px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>5ライン ビデオスロット</h1>
+    <div id="player-info">
+        所持コイン: <span id="coin-count">100</span>
+    </div>
+
+    <div id="reels-area"></div>
+    <div id="stop-controls"></div>
+
+    <div id="message">ベットしてスピン！</div>
+    <div id="controls">
+        <div id="bet-controls">
+            <label for="bet-amount">ベット額:</label>
+            <input type="number" id="bet-amount" value="10" min="1">
+            <button id="spin-button">スピン</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- HTML要素の取得 ---
+    const reelsArea = document.getElementById('reels-area');
+    const stopControls = document.getElementById('stop-controls');
+    const coinCountSpan = document.getElementById('coin-count');
+    const betAmountInput = document.getElementById('bet-amount');
+    const spinButton = document.getElementById('spin-button');
+    const messageDiv = document.getElementById('message');
+
+    // --- ゲームの基本設定 ---
+    const REEL_COLS = 3;
+    const REEL_ROWS = 3;
+
+    const symbols = [
+        { name: 's7', content: '７', payout: 100 },
+        { name: 'bell', content: '🔔', payout: 50 },
+        { name: 'melon', content: '🍉', payout: 20 },
+        { name: 'cherry', content: '🍒', payout: 10 }
+    ];
+    
+    const winLines = [
+        [0, 3, 6], // 上段
+        [1, 4, 7], // 中段
+        [2, 5, 8], // 下段
+        [0, 4, 8], // 右下がり斜め
+        [2, 4, 6]  // 右上がり斜め
+    ];
+
+    let coins = 100;
+    let reelSpins = [];
+    let reelCells = [];
+    let stopButtons = [];
+    let isSpinning = false;
+
+    function initialize() {
+        createReels();
+        spinButton.addEventListener('click', spin);
+    }
+    
+    function createReels() {
+        for (let i = 0; i < REEL_COLS; i++) {
+            const reelColumn = document.createElement('div');
+            reelColumn.className = 'reel-column';
+            for (let j = 0; j < REEL_ROWS; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'reel-cell';
+                const cellIndex = j + (i * REEL_ROWS);
+                cell.id = `cell-${cellIndex}`;
+                reelColumn.appendChild(cell);
+            }
+            reelsArea.appendChild(reelColumn);
+
+            const stopButton = document.createElement('button');
+            stopButton.className = 'stop-button';
+            stopButton.id = `stop${i}`;
+            stopButton.textContent = `ストップ ${i + 1}`;
+            stopButton.disabled = true;
+            stopButton.addEventListener('click', () => stopReel(i));
+            stopControls.appendChild(stopButton);
+            stopButtons.push(stopButton);
+        }
+        for(let i=0; i < REEL_COLS * REEL_ROWS; i++) {
+            reelCells.push(document.getElementById(`cell-${i}`));
+        }
+        reelCells.forEach(cell => drawCellContent(cell, symbols.find(s => s.name === 'cherry')));
+    }
+
+    function drawCellContent(cell, symbol) {
+        cell.dataset.symbolName = symbol.name;
+        cell.textContent = symbol.content;
+    }
+
+    function spin() {
+        if (isSpinning) return;
+        const betAmount = parseInt(betAmountInput.value);
+
+        if (isNaN(betAmount) || betAmount <= 0) {
+            showMessage("有効なベット額を入力してください。"); return;
+        }
+        if (coins < betAmount) {
+            showMessage("コインが足りません！"); return;
+        }
+        
+        isSpinning = true;
+        spinButton.disabled = true;
+        betAmountInput.disabled = true;
+        stopButtons.forEach(button => button.disabled = false);
+        reelCells.forEach(cell => cell.classList.remove('highlight'));
+        showMessage("リールを止めてください！");
+
+        coins -= betAmount;
+        updateCoins();
+
+        reelSpins = [];
+        for (let i = 0; i < REEL_COLS; i++) {
+            const interval = setInterval(() => {
+                for (let j = 0; j < REEL_ROWS; j++) {
+                    const cell = document.getElementById(`cell-${j + (i * REEL_ROWS)}`);
+                    const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+                    drawCellContent(cell, randomSymbol);
+                }
+            }, 80);
+            reelSpins.push(interval);
+        }
+    }
+
+    function stopReel(colIndex) {
+        if (reelSpins[colIndex] === null) return;
+
+        clearInterval(reelSpins[colIndex]);
+        reelSpins[colIndex] = null;
+        stopButtons[colIndex].disabled = true;
+
+        if (reelSpins.every(s => s === null)) {
+            setTimeout(checkWin, 250);
+        }
+    }
+
+    function checkWin() {
+        let totalWin = 0;
+        let hitLinesCount = 0;
+        const betAmount = parseInt(betAmountInput.value);
+        const cellSymbols = reelCells.map(cell => cell.dataset.symbolName);
+        let hitLineDetails = new Set();
+
+        winLines.forEach(line => {
+            const [c1, c2, c3] = line.map(index => cellSymbols[index]);
+            
+            if (c1 === c2 && c2 === c3) {
+                const symbol = symbols.find(s => s.name === c1);
+                totalWin += betAmount * symbol.payout;
+                hitLinesCount++;
+                line.forEach(index => hitLineDetails.add(index));
+            }
+        });
+
+        if (totalWin > 0) {
+            coins += totalWin;
+            updateCoins();
+            showMessage(`🎉 ${hitLinesCount}ライン HIT! ${totalWin}コイン獲得! 🎉`);
+            hitLineDetails.forEach(index => reelCells[index].classList.add('highlight'));
+        } else {
+            showMessage("残念！");
+        }
+        
+        if (coins > 0) {
+            spinButton.disabled = false;
+            betAmountInput.disabled = false;
+        } else {
+            showMessage("ゲームオーバー！リロードして再挑戦！");
+            spinButton.disabled = true;
+        }
+        isSpinning = false;
+    }
+
+    function updateCoins() { coinCountSpan.textContent = coins; }
+    function showMessage(text) { messageDiv.textContent = text; }
+    
+    initialize();
+
+</script>
+
+</body>
+</html>
