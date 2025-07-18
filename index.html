@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スロット</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            padding: 20px 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 480px;
+        }
+
+        h1 { color: #333; margin-top: 0; }
+
+        /* --- 画面切り替え --- */
+        #setup-screen { display: block; }
+        #game-screen { display: none; }
+
+        /* --- 設定画面のスタイル --- */
+        .symbol-setting {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+        .symbol-setting label { font-weight: bold; font-size: 16px; }
+        .preview-img {
+            width: 60px;
+            height: 60px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            object-fit: cover;
+            background-color: #f8f8f8;
+            font-size: 40px;
+            line-height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .preview-img img { width: 100%; height: 100%; object-fit: cover; }
+        #start-game-button {
+            width: 100%;
+            background-color: #007bff;
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+        #start-game-button:hover { background-color: #0069d9; }
+
+        /* --- ゲーム画面のスタイル --- */
+        #reels-area {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            gap: 70px;
+            padding: 10px;
+            border: 5px solid #333;
+            background: #000;
+            border-radius: 10px;
+        }
+        .reel-column { display: flex; flex-direction: column; gap: 5px; }
+        .reel-cell {
+            width: 80px;
+            height: 80px;
+            background-color: #fff;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            border: 2px solid #ccc;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+        }
+        .reel-cell img { width: 100%; height: 100%; object-fit: cover; }
+        .highlight {
+            background-color: #ffc107 !important;
+            border-color: #e84118 !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px #ffc107;
+        }
+        #stop-controls {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 10px;
+        }
+        .stop-button {
+            width: 90px;
+            padding: 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #dc3545;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .stop-button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #player-info { font-size: 18px; color: #555; margin: 20px 0; }
+        #player-info span { font-weight: bold; color: #e84118; }
+        #bet-controls { display: flex; justify-content: center; align-items: center; gap: 15px; }
+        #bet-amount {
+            width: 60px; padding: 5px; font-size: 16px; border-radius: 5px;
+            border: 1px solid #ccc; text-align: center;
+        }
+        #spin-button {
+            background-color: #4CAF50; color: white; padding: 15px 30px;
+            border: none; border-radius: 8px; cursor: pointer;
+            font-size: 20px; font-weight: bold;
+        }
+        #spin-button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #message { margin-top: 20px; font-size: 18px; font-weight: bold; color: #d35400; height: 25px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="setup-screen">
+        <h1>シンボル設定</h1>
+        <p>好きな画像を設定できます。(未設定でも遊べます)</p>
+        
+        <div class="symbol-setting">
+            <label>高配当 (７)</label>
+            <input type="file" accept="image/*" data-symbol-name="s7" onchange="handleFileSelect(event)">
+            <div id="preview-s7" class="preview-img"></div>
+        </div>
+        <div class="symbol-setting">
+            <label>中配当 (ベル)</label>
+            <input type="file" accept="image/*" data-symbol-name="bell" onchange="handleFileSelect(event)">
+            <div id="preview-bell" class="preview-img"></div>
+        </div>
+        <div class="symbol-setting">
+            <label>中配当 (スイカ)</label>
+            <input type="file" accept="image/*" data-symbol-name="melon" onchange="handleFileSelect(event)">
+            <div id="preview-melon" class="preview-img"></div>
+        </div>
+        <div class="symbol-setting">
+            <label>低配当 (チェリー)</label>
+            <input type="file" accept="image/*" data-symbol-name="cherry" onchange="handleFileSelect(event)">
+            <div id="preview-cherry" class="preview-img"></div>
+        </div>
+        
+        <button id="start-game-button">設定を完了してゲーム開始</button>
+    </div>
+
+    <div id="game-screen">
+        <h1>スロット</h1>
+        <div id="player-info">
+            所持コイン: <span id="coin-count">100</span>
+        </div>
+        <div id="reels-area"></div>
+        <div id="stop-controls"></div>
+        <div id="message">ベットしてスピン！</div>
+        <div id="controls">
+            <div id="bet-controls">
+                <label for="bet-amount">ベット額:</label>
+                <input type="number" id="bet-amount" value="10" min="1">
+                <button id="spin-button">スピン</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- HTML要素の取得 ---
+    const setupScreen = document.getElementById('setup-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const startGameButton = document.getElementById('start-game-button');
+    const reelsArea = document.getElementById('reels-area');
+    const stopControls = document.getElementById('stop-controls');
+    const coinCountSpan = document.getElementById('coin-count');
+    const betAmountInput = document.getElementById('bet-amount');
+    const spinButton = document.getElementById('spin-button');
+    const messageDiv = document.getElementById('message');
+
+    // --- ゲームの基本設定 ---
+    const REEL_COLS = 3;
+    const REEL_ROWS = 3;
+    let symbols = [
+        { name: 's7', src: null, defaultContent: '７', payout: 10 },
+        { name: 'bell', src: null, defaultContent: '🔔', payout: 5 },
+        { name: 'melon', src: null, defaultContent: '🍉', payout: 3 },
+        { name: 'cherry', src: null, defaultContent: '🍒', payout: 2 }
+    ];
+    const winLines = [
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // 横3ライン
+        [0, 4, 8], [2, 4, 6]              // 斜め2ライン
+    ];
+
+    // ゲームの状態管理
+    let coins = 100;
+    let reelSpins = [];
+    let reelCells = [];
+    let stopButtons = [];
+    let isSpinning = false;
+
+    // 初期化処理
+    function initialize() {
+        // 設定画面のプレビューにデフォルトシンボルを表示
+        symbols.forEach(s => {
+            document.getElementById(`preview-${s.name}`).textContent = s.defaultContent;
+        });
+        startGameButton.addEventListener('click', startGame);
+        spinButton.addEventListener('click', spin);
+        window.addEventListener('keydown', handleKeyDown);
+    }
+
+    // 画像・キーボード関連
+
+    // ファイル選択時の処理
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        
+        const symbolName = event.target.dataset.symbolName;
+        const previewDiv = document.getElementById(`preview-${symbolName}`);
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imageUrl = e.target.result;
+            const symbol = symbols.find(s => s.name === symbolName);
+            symbol.src = imageUrl; // 画像のURLを保存
+            previewDiv.innerHTML = `<img src="${imageUrl}" alt="${symbol.name}">`;
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    // ゲーム開始処理
+    function startGame() {
+        setupScreen.style.display = 'none';
+        gameScreen.style.display = 'block';
+        createReels(); // ゲーム画面の生成をここで行う
+    }
+    
+    // キーボード操作の処理
+    function handleKeyDown(event) {
+        if (gameScreen.style.display === 'none') return; // ゲーム画面以外では無効
+
+        switch (event.key.toLowerCase()) {
+            case ' ':
+                if (!spinButton.disabled) {
+                    event.preventDefault();
+                    spin();
+                }
+                break;
+            case 'g': if (!stopButtons[0].disabled) stopReel(0); break;
+            case 'h': if (!stopButtons[1].disabled) stopReel(1); break;
+            case 'j': if (!stopButtons[2].disabled) stopReel(2); break;
+        }
+    }
+    
+    // ゲームロジックの関数
+
+    function createReels() {
+        for (let i = 0; i < REEL_COLS; i++) {
+            const reelColumn = document.createElement('div');
+            reelColumn.className = 'reel-column';
+            for (let j = 0; j < REEL_ROWS; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'reel-cell';
+                cell.id = `cell-${j + (i * REEL_ROWS)}`;
+                reelColumn.appendChild(cell);
+            }
+            reelsArea.appendChild(reelColumn);
+
+            const stopButton = document.createElement('button');
+            stopButton.className = 'stop-button';
+            stopButton.textContent = `ストップ ${i + 1}`;
+            stopButton.disabled = true;
+            stopButton.addEventListener('click', () => stopReel(i));
+            stopControls.appendChild(stopButton);
+            stopButtons.push(stopButton);
+        }
+        for(let i=0; i < REEL_COLS * REEL_ROWS; i++) {
+            reelCells.push(document.getElementById(`cell-${i}`));
+        }
+        reelCells.forEach(cell => drawCellContent(cell, symbols[3])); // 初期表示
+    }
+
+    // セルの表示内容を描画する関数（画像と絵文字を分岐）
+    function drawCellContent(cell, symbol) {
+        cell.dataset.symbolName = symbol.name;
+        // カスタム画像(src)が設定されていれば画像、なければデフォルトの絵文字を表示
+        if (symbol.src) {
+            cell.innerHTML = `<img src="${symbol.src}" alt="${symbol.name}">`;
+        } else {
+            cell.innerHTML = ''; // 中身を一時的にクリア
+            cell.textContent = symbol.defaultContent;
+        }
+    }
+
+    function spin() {
+        if (isSpinning) return;
+        const betAmount = parseInt(betAmountInput.value);
+
+        if (isNaN(betAmount) || betAmount <= 0) { showMessage("有効なベット額を入力してください。"); return; }
+        if (coins < betAmount) { showMessage("コインが足りません！"); return; }
+        
+        isSpinning = true;
+        spinButton.disabled = true;
+        betAmountInput.disabled = true;
+        stopButtons.forEach(button => button.disabled = false);
+        reelCells.forEach(cell => cell.classList.remove('highlight'));
+        showMessage("止めろ！");
+
+        coins -= betAmount;
+        updateCoins();
+
+        reelSpins = [];
+        for (let i = 0; i < REEL_COLS; i++) {
+            const interval = setInterval(() => {
+                for (let j = 0; j < REEL_ROWS; j++) {
+                    const cell = document.getElementById(`cell-${j + (i * REEL_ROWS)}`);
+                    const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+                    drawCellContent(cell, randomSymbol);
+                }
+            }, 80);
+            reelSpins.push(interval);
+        }
+    }
+
+    function stopReel(colIndex) {
+        if (reelSpins[colIndex] === null) return;
+
+        clearInterval(reelSpins[colIndex]);
+        reelSpins[colIndex] = null;
+        stopButtons[colIndex].disabled = true;
+
+        if (reelSpins.every(s => s === null)) {
+            setTimeout(checkWin, 250);
+        }
+    }
+
+    function checkWin() {
+        let totalWin = 0;
+        let hitLinesCount = 0;
+        const betAmount = parseInt(betAmountInput.value);
+        const cellSymbols = reelCells.map(cell => cell.dataset.symbolName);
+        let hitLineDetails = new Set();
+
+        winLines.forEach(line => {
+            const [c1, c2, c3] = line.map(index => cellSymbols[index]);
+            
+            if (c1 === c2 && c2 === c3) {
+                const symbol = symbols.find(s => s.name === c1);
+                totalWin += betAmount * symbol.payout;
+                hitLinesCount++;
+                line.forEach(index => hitLineDetails.add(index));
+            }
+        });
+
+        if (totalWin > 0) {
+            coins += totalWin;
+            updateCoins();
+            showMessage(`🎉 ${hitLinesCount}ライン HIT! ${totalWin}コイン獲得! 🎉`);
+            hitLineDetails.forEach(index => reelCells[index].classList.add('highlight'));
+        } else {
+            showMessage("残念！");
+        }
+        
+        if (coins > 0) {
+            spinButton.disabled = false;
+            betAmountInput.disabled = false;
+        } else {
+            showMessage("ゲームオーバー！リロードして再挑戦！");
+            spinButton.disabled = true;
+        }
+        isSpinning = false;
+    }
+
+    function updateCoins() { coinCountSpan.textContent = coins; }
+    function showMessage(text) { messageDiv.textContent = text; }
+    
+    // --- 実行 ---
+    initialize();
+
+</script>
+    <footer>
+        <p>&copy; 2025 くろあめ</p>
+    </footer>
+</body>
+</html>
